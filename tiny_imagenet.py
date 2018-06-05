@@ -66,7 +66,6 @@ class TinyImageNet(data.Dataset):
             return img
         else:
             file_name = file_path.split('/')[-1]
-            print(file_name)
             return img, self.labels[file_name]
 
     def __repr__(self):
