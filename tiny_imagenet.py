@@ -1,3 +1,10 @@
+"""
+Author: Meng Lee
+Date: 2018/06/04
+References:
+    - https://stanford.edu/~shervine/blog/pytorch-how-to-generate-data-parallel.html
+"""
+
 import os
 import os.path
 import glob
@@ -16,18 +23,19 @@ class TinyImageNet(data.Dataset):
     ----------
     root: string
         Root directory including `train`, `test` and `val` subdirectories.
-    subset: string
-        Indicating which subset(split) to return as a data set.
+    split: string
+        Indicating which split to return as a data set.
         Valid option: [`train`, `test`, `val`]
     transform: torchvision.transforms
         A (series) of valid transformation(s).
     """
-    def __init__(self, root, subset='train', transform=None):
+    def __init__(self, root, split='train', transform=None, target_transform=None):
         self.root = os.path.expanduser(root)
-        self.subset = subset
+        self.split = split
         self.transform = transform
-        self.subset_dir = os.path.join(root, self.subset)
-        self.image_paths = sorted(glob.iglob(self.subset_dir + '/**/*' + EXTENSION, recursive=True))
+        self.target_transform = target_transform
+        self.split_dir = os.path.join(root, self.split)
+        self.image_paths = sorted(glob.iglob(self.split_dir + '/**/*' + EXTENSION, recursive=True))
         self.labels = {} # fname - label number mapping
 
         # build class label - number mapping
@@ -35,12 +43,12 @@ class TinyImageNet(data.Dataset):
             self.label_texts = sorted([text.replace('\n', '') for _, text in enumerate(fp)])
             self.label_text_to_number = {text: i for i, text in enumerate(self.label_texts)}
 
-        if self.subset == 'train':
+        if self.split == 'train':
             for label_text, i in self.label_text_to_number.items():
                 for cnt in range(NUM_IMAGES_PER_CLASS):
                     self.labels['_'.join((label_text, str(cnt))) + EXTENSION] = i
-        elif self.subset == 'val':
-            with open(os.path.join(self.subset_dir, VAL_ANNOTATION_FILE), 'r') as fp:
+        elif self.split == 'val':
+            with open(os.path.join(self.split_dir, VAL_ANNOTATION_FILE), 'r') as fp:
                 for _, line in enumerate(fp):
                     terms = line.split('\t')
                     file_name, label_text = terms[0], terms[1]
@@ -54,24 +62,36 @@ class TinyImageNet(data.Dataset):
         img = Image.open(file_path)
         img = self.transform(img) if self.transform else img
 
-        if self.subset == 'test':
+        if self.split == 'test':
             return img
         else:
             file_name = file_path.split('/')[-1]
             print(file_name)
             return img, self.labels[file_name]
 
+    def __repr__(self):
+        fmt_str = 'Dataset ' + self.__class__.__name__ + '\n'
+        fmt_str += '    Number of datapoints: {}\n'.format(self.__len__())
+        tmp = self.split
+        fmt_str += '    Split: {}\n'.format(tmp)
+        fmt_str += '    Root Location: {}\n'.format(self.root)
+        tmp = '    Transforms (if any): '
+        fmt_str += '{0}{1}\n'.format(tmp, self.transform.__repr__().replace('\n', '\n' + ' ' * len(tmp)))
+        tmp = '    Target Transforms (if any): '
+        fmt_str += '{0}{1}'.format(tmp, self.target_transform.__repr__().replace('\n', '\n' + ' ' * len(tmp)))
+        return fmt_str
+
 
 if __name__ == '__main__':
 
-    tiny_train = TinyImageNet('./dataset', subset='train')
+    tiny_train = TinyImageNet('./dataset', split='train')
     print(len(tiny_train))
     print(tiny_train.__getitem__(99999))
     for fname, number in tiny_train.labels.items():
         if number == 192:
             print(fname, number)
 
-    tiny_train = TinyImageNet('./dataset', subset='val')
+    tiny_train = TinyImageNet('./dataset', split='val')
     print(tiny_train.__getitem__(99))
 
 
