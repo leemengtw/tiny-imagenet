@@ -28,15 +28,19 @@ class TinyImageNet(data.Dataset):
         Valid option: [`train`, `test`, `val`]
     transform: torchvision.transforms
         A (series) of valid transformation(s).
+    in_memory: bool
+        Set to True if there is enough memory (about 5G) and want to minimize disk IO overhead.
     """
-    def __init__(self, root, split='train', transform=None, target_transform=None):
+    def __init__(self, root, split='train', transform=None, target_transform=None, in_memory=False):
         self.root = os.path.expanduser(root)
         self.split = split
         self.transform = transform
         self.target_transform = target_transform
+        self.in_memory = in_memory
         self.split_dir = os.path.join(root, self.split)
         self.image_paths = sorted(glob.iglob(self.split_dir + '/**/*' + EXTENSION, recursive=True))
-        self.labels = {} # fname - label number mapping
+        self.labels = {}  # fname - label number mapping
+        self.images = []  # used for in-memory processing
 
         # build class label - number mapping
         with open(os.path.join(self.root, CLASS_LIST_FILE), 'r') as fp:
@@ -54,13 +58,20 @@ class TinyImageNet(data.Dataset):
                     file_name, label_text = terms[0], terms[1]
                     self.labels[file_name] = self.label_text_to_number[label_text]
 
+        # read all images into torch tensor in memory to minimize disk IO overhead
+        if self.in_memory:
+            self.images = [self.read_image(path) for path in self.image_paths]
+
     def __len__(self):
         return len(self.image_paths)
 
     def __getitem__(self, index):
         file_path = self.image_paths[index]
-        img = Image.open(file_path)
-        img = self.transform(img) if self.transform else img
+
+        if self.in_memory:
+            img = self.images[index]
+        else:
+            img = self.read_image(file_path)
 
         if self.split == 'test':
             return img
@@ -80,18 +91,28 @@ class TinyImageNet(data.Dataset):
         fmt_str += '{0}{1}'.format(tmp, self.target_transform.__repr__().replace('\n', '\n' + ' ' * len(tmp)))
         return fmt_str
 
+    def read_image(self, path):
+        img = Image.open(path)
+        img = self.transform(img) if self.transform else img
+        return img
+
 
 if __name__ == '__main__':
 
-    tiny_train = TinyImageNet('./dataset', split='train')
-    print(len(tiny_train))
-    print(tiny_train.__getitem__(99999))
-    for fname, number in tiny_train.labels.items():
-        if number == 192:
-            print(fname, number)
+    # tiny_train = TinyImageNet('./dataset', split='train')
+    # print(len(tiny_train))
+    # print(tiny_train.__getitem__(99999))
+    # for fname, number in tiny_train.labels.items():
+    #     if number == 192:
+    #         print(fname, number)
 
-    tiny_train = TinyImageNet('./dataset', split='val')
-    print(tiny_train.__getitem__(99))
+    # tiny_train = TinyImageNet('./dataset', split='val')
+    # print(tiny_train.__getitem__(99))
+
+
+    # in-memory test
+    tiny_val = TinyImageNet('./dataset', split='val', in_memory=True)
+
 
 
 
