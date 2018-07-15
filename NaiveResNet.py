@@ -43,12 +43,12 @@ class GlobalAveragePooling(nn.Module):
 class NaiveResNet(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
-        self.groups = [
+        self.groups = nn.ModuleList([
             self._build_group(in_channels=3, out_channels=64, stride=2, num_blocks=2),
             self._build_group(in_channels=64, out_channels=128, stride=2, num_blocks=2),
             self._build_group(in_channels=128, out_channels=512, stride=2, num_blocks=2),
             self._build_group(in_channels=512, out_channels=1024, stride=2, num_blocks=2)
-        ]
+        ])
         self.globalavgpool = GlobalAveragePooling()
         self.conv = nn.Sequential(
             nn.Conv2d(in_channels=1024, out_channels=200, kernel_size=1)
@@ -72,7 +72,6 @@ class NaiveResNet(nn.Module):
 
 
 if __name__ == '__main__':
-
     dummy_input = Variable(torch.rand(16, 3, 64, 64))
     resnet = NaiveResNet(num_classes=200)
     y = resnet.forward(dummy_input)

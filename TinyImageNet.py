@@ -38,7 +38,8 @@ class TinyImageNet(data.Dataset):
         self.target_transform = target_transform
         self.in_memory = in_memory
         self.split_dir = os.path.join(root, self.split)
-        self.image_paths = sorted(glob.iglob(self.split_dir + '/**/*' + EXTENSION, recursive=True))
+        # self.image_paths = sorted(glob.iglob(self.split_dir + '/**/*' + EXTENSION, recursive=True))
+        self.image_paths = sorted(glob.iglob(os.path.join(self.split_dir, '**', '*.%s' % EXTENSION, recursive=True))
         self.labels = {}  # fname - label number mapping
         self.images = []  # used for in-memory processing
 
@@ -111,7 +112,7 @@ if __name__ == '__main__':
 
 
     # in-memory test
-    tiny_val = TinyImageNet('./dataset', split='val', in_memory=True)
+    tiny_val = TinyImageNet('dataset', split='val', in_memory=True)
 
 
 
