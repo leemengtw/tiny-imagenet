@@ -8,10 +8,8 @@ class ResidualBlock(nn.Module):
         super().__init__()
         # compute Z[L+2]
         self.conv = nn.Sequential(
-            nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, stride=stride, padding=1),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=3, padding=1),
+            nn.Conv2d(in_channels=in_channels, out_channels=in_channels, kernel_size=3, stride=stride, padding=1, groups=in_channels),
+            nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1),
             nn.BatchNorm2d(out_channels)
         )
         self.relu = nn.ReLU(inplace=True)
@@ -44,14 +42,15 @@ class NaiveResNet(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.groups = nn.ModuleList([
-            self._build_group(in_channels=3, out_channels=64, stride=2, num_blocks=2),
+            nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding=1, stride=2),
+            self._build_group(in_channels=32, out_channels=64, stride=2, num_blocks=2),
             self._build_group(in_channels=64, out_channels=128, stride=2, num_blocks=2),
-            self._build_group(in_channels=128, out_channels=512, stride=2, num_blocks=2),
-            self._build_group(in_channels=512, out_channels=1024, stride=2, num_blocks=2)
+            self._build_group(in_channels=128, out_channels=256, stride=2, num_blocks=2),
+            self._build_group(in_channels=256, out_channels=512, stride=2, num_blocks=2)
         ])
         self.globalavgpool = GlobalAveragePooling()
         self.conv = nn.Sequential(
-            nn.Conv2d(in_channels=1024, out_channels=200, kernel_size=1)
+            nn.Conv2d(in_channels=512, out_channels=200, kernel_size=1)
         )
 
     def forward(self, x):
