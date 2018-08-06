@@ -1,22 +1,22 @@
 """
-Author: Meng Lee
+Author: Meng Lee, mnicnc404
 Date: 2018/06/04
 References:
     - https://stanford.edu/~shervine/blog/pytorch-how-to-generate-data-parallel.html
 """
 
 import os
-import os.path
 import glob
-import torch.utils.data as data
+from torch.utils.data import Dataset
 from PIL import Image
 
-EXTENSION = '.JPEG'
+EXTENSION = 'JPEG'
 NUM_IMAGES_PER_CLASS = 500
 CLASS_LIST_FILE = 'wnids.txt'
 VAL_ANNOTATION_FILE = 'val_annotations.txt'
 
-class TinyImageNet(data.Dataset):
+
+class TinyImageNet(Dataset):
     """Tiny ImageNet data set available from `http://cs231n.stanford.edu/tiny-imagenet-200.zip`.
 
     Parameters
@@ -38,22 +38,22 @@ class TinyImageNet(data.Dataset):
         self.target_transform = target_transform
         self.in_memory = in_memory
         self.split_dir = os.path.join(root, self.split)
-        self.image_paths = sorted(glob.iglob(self.split_dir + '/**/*' + EXTENSION, recursive=True))
+        self.image_paths = sorted(glob.iglob(os.path.join(self.split_dir, '**', '*.%s' % EXTENSION), recursive=True))
         self.labels = {}  # fname - label number mapping
         self.images = []  # used for in-memory processing
 
         # build class label - number mapping
         with open(os.path.join(self.root, CLASS_LIST_FILE), 'r') as fp:
-            self.label_texts = sorted([text.replace('\n', '') for _, text in enumerate(fp)])
-            self.label_text_to_number = {text: i for i, text in enumerate(self.label_texts)}
+            self.label_texts = sorted([text.strip() for text in fp.readlines()])
+        self.label_text_to_number = {text: i for i, text in enumerate(self.label_texts)}
 
         if self.split == 'train':
             for label_text, i in self.label_text_to_number.items():
                 for cnt in range(NUM_IMAGES_PER_CLASS):
-                    self.labels['_'.join((label_text, str(cnt))) + EXTENSION] = i
+                    self.labels['%s_%d.%s' % (label_text, cnt, EXTENSION)] = i
         elif self.split == 'val':
             with open(os.path.join(self.split_dir, VAL_ANNOTATION_FILE), 'r') as fp:
-                for _, line in enumerate(fp):
+                for line in fp.readlines():
                     terms = line.split('\t')
                     file_name, label_text = terms[0], terms[1]
                     self.labels[file_name] = self.label_text_to_number[label_text]
@@ -76,8 +76,8 @@ class TinyImageNet(data.Dataset):
         if self.split == 'test':
             return img
         else:
-            file_name = file_path.split('/')[-1]
-            return img, self.labels[file_name]
+            # file_name = file_path.split('/')[-1]
+            return img, self.labels[os.path.basename(file_path)]
 
     def __repr__(self):
         fmt_str = 'Dataset ' + self.__class__.__name__ + '\n'
@@ -93,12 +93,10 @@ class TinyImageNet(data.Dataset):
 
     def read_image(self, path):
         img = Image.open(path)
-        img = self.transform(img) if self.transform else img
-        return img
+        return self.transform(img) if self.transform else img
 
 
 if __name__ == '__main__':
-
     # tiny_train = TinyImageNet('./dataset', split='train')
     # print(len(tiny_train))
     # print(tiny_train.__getitem__(99999))
@@ -109,10 +107,5 @@ if __name__ == '__main__':
     # tiny_train = TinyImageNet('./dataset', split='val')
     # print(tiny_train.__getitem__(99))
 
-
     # in-memory test
-    tiny_val = TinyImageNet('./dataset', split='val', in_memory=True)
-
-
-
-
+    tiny_val = TinyImageNet('dataset', split='val', in_memory=True)
